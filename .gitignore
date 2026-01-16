@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.env
+venv/
+.env/
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+
+# Logs & debug
+*.log
+debug_*.txt
+debug_*.py
+*_debug.txt
+error.log
+
+# Test outputs / temp files
+*.txt
+
+# OS
+.DS_Store
+Thumbs.db
