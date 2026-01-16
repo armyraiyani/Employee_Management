@@ -1,0 +1,14 @@
+User: admin, Role: ADMIN, Email: admin@example.com
+User: ashley.wright67, Role: EMPLOYEE, Email: ashley.wright67@company.com
+User: nicole.lewis678, Role: EMPLOYEE, Email: nicole.lewis678@company.com
+User: andrew.johnson137, Role: EMPLOYEE, Email: andrew.johnson137@company.com
+User: justin.lopez964, Role: EMPLOYEE, Email: justin.lopez964@company.com
+User: matthew.robinson803, Role: EMPLOYEE, Email: matthew.robinson803@company.com
+User: ashley.miller557, Role: EMPLOYEE, Email: ashley.miller557@company.com
+User: mary.stewart875, Role: EMPLOYEE, Email: mary.stewart875@company.com
+User: elizabeth.cook730, Role: EMPLOYEE, Email: elizabeth.cook730@company.com
+User: sneha_morja23, Role: EMPLOYEE, Email: 
+User: namasvi_patel11, Role: EMPLOYEE, Email: 
+User: nir_raiyani82, Role: EMPLOYEE, Email: 
+User: namasvi_employee68, Role: EMPLOYEE, Email: 
+User: army_raiyani86, Role: EMPLOYEE, Email: 
