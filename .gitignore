@@ -1,0 +1,7 @@
+# Frontend
+ems_frontend/node_modules/
+ems_frontend/.env
+
+# General
+node_modules/
+.env
