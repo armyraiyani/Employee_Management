@@ -1,3 +1,4 @@
+from django import views
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -159,7 +160,7 @@ def attendance_list(request):
             
     serializer = AttendanceSerializer(attendance, many=True)
     return Response(serializer.data)
-views.manage_leaves
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_attendance(request):
