@@ -11,7 +11,7 @@ function PayrollAction() {
     const [loading, setLoading] = useState(true);
     const [salary, setSalary] = useState('');
     const [message, setMessage] = useState('');
-    const [month, setMonth] = useState(new Date().toISOString().slice(0, 7) + '-01'); // YYYY-MM-01
+    const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
     const [calcData, setCalcData] = useState(null);
     const [calculating, setCalculating] = useState(false);
@@ -50,14 +50,11 @@ function PayrollAction() {
             if (!id || !month) return;
             setCalculating(true);
             try {
-                const res = await api.get(`payroll/calculate/?employee_id=${id}&month=${month}`);
+                const res = await api.get(`payroll/calculate/?employee_id=${id}&month=${month}-01`);
                 setCalcData(res.data);
                 setSalary(res.data.base_salary);
 
-                // If they joined mid-month and we are showing the 1st, update to their actual start date
-                if (res.data.joining_date && month.slice(-2) === '01') {
-                    setMonth(res.data.joining_date);
-                }
+                // Keep month selection as user chose (monthly basis), do not auto-change.
             } catch (err) {
                 console.error("Failed to calculate deductions", err);
             } finally {
@@ -68,6 +65,40 @@ function PayrollAction() {
     }, [id, month]);
 
     const handlePaymentClick = () => {
+        // Validate all required data exists before allowing payment
+        if (!id) {
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Employee ID is missing',
+                type: 'error',
+                onClose: () => setModalState(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+        }
+
+        if (!month) {
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Please select a month',
+                type: 'error',
+                onClose: () => setModalState(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+        }
+
+        if (!salary || parseFloat(salary) <= 0) {
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Invalid salary amount',
+                type: 'error',
+                onClose: () => setModalState(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+        }
+
         const finalAmount = parseFloat(salary || 0) - (calcData?.total_deduction || 0);
         const isDeducted = calcData && calcData.total_deduction > 0;
         setModalState({
@@ -85,7 +116,7 @@ function PayrollAction() {
             await api.post('payroll/pay/', {
                 employee_id: id,
                 amount: finalAmount,
-                month: month,
+                month: `${month}-01`,
                 message: message
             });
             setModalState({
@@ -159,11 +190,21 @@ function PayrollAction() {
                                 )}
                             </div>
                             <input
-                                type="date"
+                                type="month"
                                 value={month}
-                                max={new Date().toISOString().slice(0, 7) + '-31'}
+                                max={new Date().toISOString().slice(0, 7)}
                                 onChange={(e) => setMonth(e.target.value)}
-                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '10px', 
+                                    borderRadius: '8px', 
+                                    border: '1px solid #cbd5e1', 
+                                    background: '#ffffff', 
+                                    color: '#000000', 
+                                    fontWeight: '700',
+                                    fontSize: '16px',
+                                    cursor: 'pointer'
+                                }}
                             />
                         </div>
 

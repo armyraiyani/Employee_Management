@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import api from './api/axios';
@@ -13,7 +13,6 @@ function EmployeeDetail() {
     const isSelf = String(loggedUserId) === String(id);
 
     const [employee, setEmployee] = useState(null);
-    const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [allEmployees, setAllEmployees] = useState([]);
@@ -36,7 +35,6 @@ function EmployeeDetail() {
 
     // Attendance & Schedule States
     const [holidays, setHolidays] = useState([]);
-    const [schedule, setSchedule] = useState({ standard_check_in: '09:00:00', standard_check_out: '18:00:00', half_day_hours: 4.0 });
     const [showHolidaySidebar, setShowHolidaySidebar] = useState(false);
     const [showAccessModal, setShowAccessModal] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
@@ -60,8 +58,8 @@ function EmployeeDetail() {
     const formatName = (emp) => {
         if (!emp) return 'UNKNOWN';
         let first = (emp.first_name || emp.user_username || emp.username || 'USER')
-            .replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
-        let last = (emp.last_name || '').replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
+            .replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
+        let last = (emp.last_name || '').replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
         if (last.toUpperCase() === 'EMPLOYEE' && first.length > 0) last = '';
         const upperFirst = first.toUpperCase();
         const upperLast = last.toUpperCase();
@@ -69,7 +67,7 @@ function EmployeeDetail() {
         return `${upperFirst} ${upperLast}`.trim();
     };
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const endpoint = paramId ? `employees/${paramId}/` : 'profile/me/';
             const timestamp = Date.now();
@@ -77,22 +75,16 @@ function EmployeeDetail() {
             // Parallel fetch for profile and attendance/schedule/holidays
             const results = await Promise.all([
                 api.get(endpoint),
-                api.get('departments/'),
-                api.get(`attendance/schedule/?t=${timestamp}`),
                 api.get(`attendance/?t=${timestamp}`),
                 api.get(`attendance/holidays/?t=${timestamp}`).then(r => setHolidays(r.data)).catch(() => { }),
                 api.get(`employees/`)
             ]);
 
             const empRes = results[0];
-            const deptRes = results[1];
-            const scholRes = results[2];
-            const allEmpRes = results[5];
+            const allEmpRes = results[3];
 
             setEmployee(empRes.data);
             setAllEmployees(allEmpRes.data);
-            setDepartments(deptRes.data);
-            setSchedule(scholRes.data);
 
             setEditData({
                 salary: empRes.data.salary || '',
@@ -112,11 +104,11 @@ function EmployeeDetail() {
             setError('Failed to fetch employee details.');
             setLoading(false);
         }
-    };
+    }, [paramId]);
 
     useEffect(() => {
         fetchData();
-    }, [id]);
+    }, [fetchData]);
 
 
     const handleCancelEdit = (field) => {

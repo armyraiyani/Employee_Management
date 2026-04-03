@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import api from './api/axios';
@@ -17,8 +17,8 @@ function EmployeeAttendanceDetail() {
 
     const formatName = (emp) => {
         if (!emp) return 'UNKNOWN';
-        let first = (emp.first_name || emp.user_username || 'USER').replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
-        let last = (emp.last_name || '').replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
+        let first = (emp.first_name || emp.user_username || 'USER').replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
+        let last = (emp.last_name || '').replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
 
         if (last.toUpperCase() === 'EMPLOYEE' && first.length > 0) last = '';
 
@@ -44,31 +44,32 @@ function EmployeeAttendanceDetail() {
         }
     };
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [empRes, attRes, holRes, schRes, leaveRes] = await Promise.all([
-                    api.get(`employees/${id}/`),
-                    api.get(`employees/${id}/attendance/`),
-                    api.get('attendance/holidays/'),
-                    api.get('attendance/schedule/'),
-                    api.get('leaves/all/') // Fetch all leaves to filter for this employee
-                ]);
-                setEmployee(empRes.data);
-                setRecords(attRes.data);
-                setHolidays(holRes.data);
-                setSchedule(schRes.data);
-                // Filter leaves for this employee only
-                const myLeaves = leaveRes.data.filter(l => l.employee === parseInt(id) && l.status === 'APPROVED');
-                setLeaves(myLeaves);
-            } catch (err) {
-                console.error("Fetch error:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
+    const fetchData = useCallback(async () => {
+        try {
+            const [empRes, attRes, holRes, schRes, leaveRes] = await Promise.all([
+                api.get(`employees/${id}/`),
+                api.get(`employees/${id}/attendance/`),
+                api.get('attendance/holidays/'),
+                api.get('attendance/schedule/'),
+                api.get('leaves/all/') // Fetch all leaves to filter for this employee
+            ]);
+            setEmployee(empRes.data);
+            setRecords(attRes.data);
+            setHolidays(holRes.data);
+            setSchedule(schRes.data);
+            // Filter leaves for this employee only
+            const myLeaves = leaveRes.data.filter(l => l.employee === parseInt(id) && l.status === 'APPROVED');
+            setLeaves(myLeaves);
+        } catch (err) {
+            console.error("Fetch error:", err);
+        } finally {
+            setLoading(false);
+        }
     }, [id]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const isOffDay = (dateStr) => {
         if (!schedule.off_days) return false;
@@ -159,14 +160,14 @@ function EmployeeAttendanceDetail() {
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(e.target.value)}
                             style={{
-                                background: 'white',
+                                background: '#ffffff',
                                 border: '1px solid #e2e8f0',
-                                color: '#334155',
+                                color: '#000000',
                                 padding: '8px 16px',
                                 borderRadius: '10px',
                                 fontSize: '14px',
                                 outline: 'none',
-                                fontWeight: '600',
+                                fontWeight: '700',
                                 boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
                             }}
                         />

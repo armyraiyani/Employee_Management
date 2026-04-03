@@ -9,9 +9,7 @@ class CustomUser(AbstractUser):
     )
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='EMPLOYEE')
     raw_password = models.CharField(max_length=128, blank=True, null=True) # For admin reference
-    # email is already in AbstractUser
-    # is_active is already in AbstractUser
-
+   
     def __str__(self):
         return self.username
 
@@ -50,10 +48,10 @@ class Holiday(models.Model):
 class WorkSchedule(models.Model):
     standard_check_in = models.TimeField(default='09:00:00')
     standard_check_out = models.TimeField(default='18:00:00')
-    check_in_tolerance = models.IntegerField(default=15) # in minutes
-    check_out_tolerance = models.IntegerField(default=15) # in minutes
-    half_day_threshold = models.TimeField(default='15:30:00') # Fixed time for half day
-    off_days = models.CharField(max_length=20, default='0') # Comma sep integers, 0=Sunday, 6=Saturday
+    check_in_tolerance = models.IntegerField(default=15) 
+    check_out_tolerance = models.IntegerField(default=15)
+    half_day_threshold = models.TimeField(default='15:30:00')
+    off_days = models.CharField(max_length=20, default='0') 
     
     def __str__(self):
         return "Schedule Settings"
@@ -67,7 +65,9 @@ class Attendance(models.Model):
     check_out_time = models.TimeField(null=True, blank=True)
     remarks = models.CharField(max_length=50, blank=True, null=True)
     is_dismissed_by_admin = models.BooleanField(default=False)
-
+    
+    class Meta:
+        unique_together = ('employee', 'date')
     def __str__(self):
         return f"{self.employee.user.username} - {self.date}"
 
@@ -115,7 +115,7 @@ class LeaveRequest(models.Model):
     attachment = models.FileField(upload_to='leave_attachments/', null=True, blank=True)
     contact_number = models.CharField(max_length=15, null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
-    is_seen_by_employee = models.BooleanField(default=True)  # True by default for new requests
+    is_seen_by_employee = models.BooleanField(default=True) 
     is_seen_by_admin = models.BooleanField(default=False)
     is_dismissed_by_employee = models.BooleanField(default=False)
     is_dismissed_by_admin = models.BooleanField(default=False)
@@ -127,7 +127,7 @@ class LeaveRequest(models.Model):
 class Payroll(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='payroll_records')
     payment_date = models.DateField(auto_now_add=True)
-    month = models.DateField() # Stores the 1st of the month being paid for (e.g. 2023-10-01)
+    month = models.DateField() 
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, default='PAID')
     is_seen_by_employee = models.BooleanField(default=False)

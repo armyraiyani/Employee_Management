@@ -30,7 +30,7 @@ This application helps organizations manage employees, attendance, payroll (demo
 - Admin payroll actions
 ---
 ## 🛠️ Tech Stack
-### Frontend
+### Frontend (In Antigravity)
 - React.js
 - React Router
 - CSS

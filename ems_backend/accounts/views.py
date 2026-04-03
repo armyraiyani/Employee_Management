@@ -1,4 +1,3 @@
-from django import views
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -8,6 +7,7 @@ from django.contrib.auth import authenticate
 from django.utils import timezone
 from .models import CustomUser, Employee, Department, Attendance, ProfileUpdateRequest, Holiday, WorkSchedule, LeaveRequest, Payroll
 from .serializers import UserSerializer, EmployeeSerializer, AttendanceSerializer, DepartmentSerializer, ProfileUpdateRequestSerializer, HolidaySerializer, WorkScheduleSerializer, LeaveRequestSerializer, PayrollSerializer
+from datetime import datetime, date, timedelta
 
 
 @api_view(['POST'])
@@ -31,13 +31,13 @@ def login_view(request):
 
 
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
     data = request.data
     role = data.get('role', 'EMPLOYEE')
     
-    # Logic to handle full name if provided instead of split names
     full_name = data.get('full_name', '').strip() if isinstance(data.get('full_name'), str) else ''
     first_name = data.get('first_name', '')
     last_name = data.get('last_name', '')
@@ -55,8 +55,7 @@ def register_view(request):
         user.last_name = last_name
         user.save()
         
-        # Consistently create Employee profile for ALL roles to avoid frontend breaks
-        # We can differentiate them later if needed, but this ensures a linked record exists
+        
         Employee.objects.get_or_create(
             user=user,
             defaults={
@@ -75,11 +74,14 @@ def register_view(request):
         })
     return Response(serializer.errors, status=400)
 
+
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def employee_list(request):
     if request.user.role == 'ADMIN':
-        # Exclude admin users from the employee list
         employees = Employee.objects.filter(user__role='EMPLOYEE')
         serializer = EmployeeSerializer(employees, many=True)
         return Response(serializer.data)
@@ -87,9 +89,13 @@ def employee_list(request):
         try:
             employee = Employee.objects.get(user=request.user)
             serializer = EmployeeSerializer(employee)
-            return Response([serializer.data])  # Wrapped in a list
+            return Response([serializer.data]) 
         except Employee.DoesNotExist:
             return Response([])
+        
+        
+        
+        
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -109,7 +115,6 @@ def add_employee(request):
         first_name = data.get('first_name', '')
         last_name = data.get('last_name', '')
         
-        # Create user
         user = CustomUser.objects.create_user(
             username=username, 
             email=email, 
@@ -119,11 +124,9 @@ def add_employee(request):
             last_name=last_name
         )
         
-        # Explicitly set and save raw_password
         user.raw_password = password
         user.save(update_fields=['raw_password', 'role', 'first_name', 'last_name', 'email'])
         
-        # Handle Department - lookup or create by name
         dept_name = data.get('department_name')
         if dept_name:
             department, _ = Department.objects.get_or_create(name=dept_name)
@@ -141,10 +144,13 @@ def add_employee(request):
             return Response({'status': 'error', 'errors': serializer.errors}, status=400)
             
     except Exception as e:
-        # Cleanup if something fails
         if 'user' in locals():
             user.delete()
         return Response({'status': 'error', 'message': str(e)}, status=500)
+    
+    
+    
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -161,6 +167,11 @@ def attendance_list(request):
     serializer = AttendanceSerializer(attendance, many=True)
     return Response(serializer.data)
 
+
+
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_attendance(request):
@@ -168,14 +179,11 @@ def mark_attendance(request):
         employee = Employee.objects.get(user=request.user)
     except Employee.DoesNotExist:
         return Response({'error': 'Employee profile not found'}, status=404)
-
-    from datetime import datetime, date, timedelta
-
+    
     today = timezone.localdate()
     now_time = timezone.localtime().time()
-    action = request.data.get('action') # 'check-in' or 'check-out'
+    action = request.data.get('action')
     
-    # Check if employee is on approved leave today
     isOnLeave = LeaveRequest.objects.filter(
         employee=employee,
         status='APPROVED',
@@ -192,14 +200,13 @@ def mark_attendance(request):
     attendance, created = Attendance.objects.get_or_create(
         employee=employee,
         date=today,
-        defaults={'status': 'Absent'} # Default to Absent until validated
+        defaults={'status': 'Absent'} 
     )
 
     if action == 'check-in':
         if attendance.check_in_time:
             return Response({'status': 'error', 'message': 'You have already checked in today.'}, status=400)
             
-        # Check for Early Check-in
         schedule, _ = WorkSchedule.objects.get_or_create(id=1)
         if now_time < schedule.standard_check_in:
             return Response({
@@ -210,14 +217,11 @@ def mark_attendance(request):
         attendance.check_in_time = now_time
         attendance.status = 'Pending'
         
-        # Calculate Check-in Status (Late / On Time)
         tz = timezone.get_current_timezone()
         
-        # Combine today's date with the shift start time and make it timezone-aware
         shift_start_dt = timezone.make_aware(datetime.combine(today, schedule.standard_check_in), tz)
         late_threshold = shift_start_dt + timedelta(minutes=schedule.check_in_tolerance)
         
-        # Current time in the same timezone
         current_dt = timezone.localtime()
         
         if current_dt > late_threshold:
@@ -227,7 +231,7 @@ def mark_attendance(request):
             
         attendance.save()
         return Response({'status': 'success', 'message': f'Checked in successfully. Status: {attendance.remarks}'})
-
+    
     elif action == 'check-out':
         if not attendance.check_in_time:
             return Response({'status': 'error', 'message': 'You must check in first.'}, status=400)
@@ -236,35 +240,38 @@ def mark_attendance(request):
         
         attendance.check_out_time = now_time
         
-        # Calculate Final Status (Present / Half Day / Absent)
         schedule, _ = WorkSchedule.objects.get_or_create(id=1)
         
         dummy_date = date(2000, 1, 1)
+        dt_in = datetime.combine(dummy_date, attendance.check_in_time)
         dt_out = datetime.combine(dummy_date, now_time)
         shift_end = datetime.combine(dummy_date, schedule.standard_check_out)
         out_limit = shift_end - timedelta(minutes=schedule.check_out_tolerance)
         late_out_threshold = shift_end + timedelta(minutes=schedule.check_out_tolerance)
         half_day_time = datetime.combine(dummy_date, schedule.half_day_threshold)
         
-        # Append check-out remarks if late
         if dt_out > late_out_threshold:
             current_remarks = attendance.remarks or ''
             if current_remarks:
                 attendance.remarks = f"{current_remarks}, Check-out Late"
             else:
                 attendance.remarks = "Check-out Late"
-        
-        if dt_out >= out_limit:
-            attendance.status = 'Present'
-        elif dt_out >= half_day_time:
+
+        if dt_in > half_day_time or dt_out < half_day_time:
+            attendance.status = 'Absent'
+        elif dt_out < out_limit:
             attendance.status = 'Half Day'
         else:
-            attendance.status = 'Absent'
+            attendance.status = 'Present'
             
         attendance.save()
         return Response({'status': 'success', 'message': f'Checked out successfully. Status: {attendance.status}'})
     
     return Response({'error': 'Invalid action'}, status=400)
+
+
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -305,6 +312,10 @@ def override_attendance(request):
         return Response({'error': 'Employee not found'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=400)
+    
+    
+
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -316,6 +327,9 @@ def get_employee_attendance(request, employee_id):
     serializer = AttendanceSerializer(records, many=True)
     return Response(serializer.data)
 
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
@@ -324,7 +338,6 @@ def update_profile(request):
     except Employee.DoesNotExist:
         return Response({'error': 'Employee profile not found'}, status=404)
     
-    # Handle File Upload (Resume) - still direct as it's a file
     if 'resume' in request.FILES:
         employee.resume = request.FILES['resume']
         employee.save()
@@ -335,7 +348,6 @@ def update_profile(request):
         employee.save()
         return Response({'status': 'success', 'message': 'Resume uploaded successfully'})
     
-    # Create a Profile Update Request for admin approval
     data = request.data
     new_username = data.get('username')
     new_email = data.get('email')
@@ -343,7 +355,6 @@ def update_profile(request):
     new_phone = data.get('phone_number')
     
     if any([new_username, new_email, new_address, new_phone]):
-        # If user is ADMIN, update directly
         if request.user.role == 'ADMIN':
             if new_username:
                 employee.user.username = new_username
@@ -358,7 +369,6 @@ def update_profile(request):
             employee.save()
             return Response({'status': 'success', 'message': 'Profile updated successfully'})
         
-        # If user is EMPLOYEE, create request
         else:
             ProfileUpdateRequest.objects.create(
                 employee=employee,
@@ -375,6 +385,9 @@ def update_profile(request):
     
     return Response({'error': 'No data provided'}, status=400)
 
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def list_profile_requests(request):
@@ -384,6 +397,9 @@ def list_profile_requests(request):
     requests = ProfileUpdateRequest.objects.filter(status='PENDING').order_by('-created_at')
     serializer = ProfileUpdateRequestSerializer(requests, many=True)
     return Response(serializer.data)
+
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -396,12 +412,11 @@ def handle_profile_request(request, pk):
     except ProfileUpdateRequest.DoesNotExist:
         return Response({'error': 'Request not found'}, status=404)
     
-    action = request.data.get('action') # 'APPROVE' or 'REJECT'
+    action = request.data.get('action') 
     
     if action == 'APPROVE':
         profile_req.status = 'APPROVED'
         profile_req.is_seen_by_employee = False
-        # Apply changes to employee profile and user record
         employee = profile_req.employee
         user = employee.user
         
@@ -428,6 +443,9 @@ def handle_profile_request(request, pk):
     
     return Response({'error': 'Invalid action'}, status=400)
 
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_my_profile(request):
@@ -437,6 +455,9 @@ def get_my_profile(request):
         return Response(serializer.data)
     except Employee.DoesNotExist:
         return Response({'status': 'error', 'message': 'Employee profile not found'}, status=404)
+
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -451,7 +472,6 @@ def get_employee_detail(request, pk):
     except Employee.DoesNotExist:
         return Response({'status': 'error', 'message': 'Employee not found'}, status=404)
 
-from rest_framework.parsers import MultiPartParser, FormParser
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -467,36 +487,30 @@ def admin_update_employee(request, pk):
     
     data = request.data
     
-    # Handle Salary - prevent empty string errors
     new_salary = data.get('salary')
     if new_salary == '' or new_salary is None:
         employee.salary = 0
     else:
         employee.salary = new_salary
     
-    # Update related User fields
     user = employee.user
     user.first_name = data.get('first_name', user.first_name).strip()
     user.last_name = data.get('last_name', user.last_name).strip()
     user.save()
     
-    # Handle Department change
     dept_name = data.get('department_name')
     if dept_name:
         department, _ = Department.objects.get_or_create(name=dept_name)
         employee.department = department
 
-    # Handle Personal Info directly
     if 'address' in data:
         employee.address = data.get('address')
     if 'phone_number' in data:
         employee.phone_number = data.get('phone_number')
     
-    # Handle Designation
     if 'designation' in data:
         employee.designation = data.get('designation')
 
-    # Handle Resume Upload (for Admin)
     if 'resume' in request.FILES:
         employee.resume = request.FILES['resume']
     if 'resume_2' in request.FILES:
@@ -507,24 +521,23 @@ def admin_update_employee(request, pk):
     serializer = EmployeeSerializer(employee)
     return Response(serializer.data)
 
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def delete_resume(request, pk):
-    # Allow admins to delete any resume, or employees to delete their own
     try:
         employee = Employee.objects.get(pk=pk)
     except Employee.DoesNotExist:
         return Response({'error': 'Employee not found'}, status=404)
 
-    # Check permissions
     is_admin = request.user.role == 'ADMIN'
     is_owner = employee.user == request.user
 
     if not (is_admin or is_owner):
         return Response({'error': 'Unauthorized'}, status=403)
 
-    # Perform deletion
-    # Perform deletion
     resume_index = request.data.get('resume_index', '1') # Default to 1
     
     if str(resume_index) == '2':
@@ -537,12 +550,15 @@ def delete_resume(request, pk):
             return Response({'error': 'No resume found to delete'}, status=400)
     else:
         if employee.resume:
-            employee.resume.delete(save=False) # Delete file from storage
+            employee.resume.delete(save=False) 
             employee.resume = None
             employee.save()
             return Response({'status': 'success', 'message': 'Resume deleted successfully'})
         else:
             return Response({'error': 'No resume found to delete'}, status=400)
+        
+        
+        
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
@@ -553,7 +569,6 @@ def delete_employee(request, pk):
     try:
         employee = Employee.objects.get(pk=pk)
         user = employee.user
-        # Prevent admin from deleting themselves
         if user == request.user:
             return Response({'error': 'You cannot delete yourself!'}, status=400)
             
@@ -562,6 +577,9 @@ def delete_employee(request, pk):
         return Response({'status': 'success', 'message': 'Employee deleted successfully'})
     except Employee.DoesNotExist:
         return Response({'error': 'Employee not found'}, status=404)
+    
+    
+    
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -574,7 +592,6 @@ def reset_employee_password(request, pk):
         return Response({"error": "Unauthorized"}, status=403)
         
     try:
-        # Verify Admin Password
         admin_password = request.data.get('admin_password')
         if not admin_password:
             return Response({"error": "Admin password is required to confirm this action"}, status=400)
@@ -599,6 +616,9 @@ def reset_employee_password(request, pk):
         return Response({"error": "Employee not found"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+    
+    
+    
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -610,7 +630,6 @@ def reveal_employee_password(request, pk):
         return Response({"error": "Unauthorized"}, status=403)
     
     try:
-        # Verify Admin Password
         admin_password = request.data.get('admin_password')
         if not admin_password:
             return Response({"error": "Admin password is required"}, status=400)
@@ -619,7 +638,6 @@ def reveal_employee_password(request, pk):
             return Response({"error": "Incorrect admin password"}, status=401)
 
         employee = Employee.objects.get(pk=pk)
-        # Check if raw_password exists
         raw_pass = getattr(employee.user, 'raw_password', None)
         
         if not raw_pass:
@@ -633,6 +651,9 @@ def reveal_employee_password(request, pk):
         return Response({"error": "Employee not found"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+    
+    
+    
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -651,6 +672,9 @@ def verify_admin_password(request):
         return Response({"status": "success", "message": "Verification successful"})
     else:
         return Response({"status": "error", "message": "Incorrect admin password"}, status=401)
+    
+    
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -659,6 +683,9 @@ def department_list(request):
     serializer = DepartmentSerializer(departments, many=True)
     return Response(serializer.data)
 
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def process_daily_attendance(request):
@@ -666,20 +693,26 @@ def process_daily_attendance(request):
         return Response({'error': 'Unauthorized'}, status=403)
     
     today = timezone.localdate()
-    
-    # Check if today is a Holiday
+    now_time = timezone.localtime().time()
+
     is_holiday = Holiday.objects.filter(date=today).exists()
-    status_to_mark = 'Holiday' if is_holiday else 'Absent'
+
+    if is_holiday:
+        status_to_mark = 'Holiday'
+    else:
+        schedule, _ = WorkSchedule.objects.get_or_create(id=1)
+        if now_time >= schedule.standard_check_out:
+            status_to_mark = 'Absent'
+        else:
+            status_to_mark = 'Pending'
     
     employees = Employee.objects.all()
     count = 0
     
     for emp in employees:
-        # Check if record exists for today
         if Attendance.objects.filter(employee=emp, date=today).exists():
             continue
             
-        # Check if employee is on Approved Leave today
         isOnLeave = LeaveRequest.objects.filter(
             employee=emp,
             status='APPROVED',
@@ -703,8 +736,11 @@ def process_daily_attendance(request):
             status=status_to_mark
         )
         count += 1
-            
+
     return Response({'status': 'success', 'message': f'Processed Daily Logs: {count} employees marked as {status_to_mark} for {today}.'})
+
+
+
 
 @api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -714,14 +750,12 @@ def holiday_manager(request, pk=None):
         serializer = HolidaySerializer(holidays, many=True)
         return Response(serializer.data)
         
-    # POST and DELETE remain ADMIN only
     if request.user.role != 'ADMIN':
         return Response({'error': 'Unauthorized'}, status=403)
         
     if request.method == 'POST':
         holiday_name = request.data.get('name', '').strip()
         
-        # Check if a holiday with the same name already exists
         if Holiday.objects.filter(name__iexact=holiday_name).exists():
             return Response({
                 'status': 'error', 
@@ -737,6 +771,9 @@ def holiday_manager(request, pk=None):
     if request.method == 'DELETE' and pk:
         Holiday.objects.filter(pk=pk).delete()
         return Response({'status': 'success', 'message': 'Holiday deleted'})
+    
+    
+    
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -747,7 +784,6 @@ def schedule_settings(request):
         serializer = WorkScheduleSerializer(schedule)
         return Response(serializer.data)
         
-    # POST remains ADMIN only
     if request.user.role != 'ADMIN':
          return Response({'error': 'Unauthorized'}, status=403)
          
@@ -757,6 +793,9 @@ def schedule_settings(request):
             serializer.save()
             return Response({'status': 'success', 'message': 'Schedule updated'})
         return Response(serializer.errors, status=400)
+
+
+
 
 @api_view(['POST', 'GET'])
 @permission_classes([IsAuthenticated])
@@ -786,7 +825,37 @@ def manage_leaves(request):
     elif request.method == 'GET':
         leaves = LeaveRequest.objects.filter(employee=employee).order_by('-created_at')
         serializer = LeaveRequestSerializer(leaves, many=True)
-        return Response(serializer.data)
+        data = serializer.data
+
+        current_date = timezone.localdate()
+        for leave in data:
+            status = leave.get('status', '')
+            end_date_str = leave.get('end_date')
+
+            if status == 'APPROVED':
+                leave['status_display'] = 'Approved'
+            elif status == 'REJECTED':
+                leave['status_display'] = 'Rejected'
+            elif status == 'PENDING':
+                if end_date_str:
+                    try:
+                        end_date = date.fromisoformat(end_date_str)
+                        if end_date < current_date:
+                            leave['status_display'] = 'Not Accepted'
+                            leave['status'] = 'NOT_ACCEPTED'
+                        else:
+                            leave['status_display'] = 'Pending'
+                    except ValueError:
+                        leave['status_display'] = 'Pending'
+                else:
+                    leave['status_display'] = 'Pending'
+            else:
+                leave['status_display'] = status.title() if status else 'Unknown'
+
+        return Response(data)
+    
+    
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -800,6 +869,9 @@ def list_all_leaves(request):
     leaves = LeaveRequest.objects.all().order_by('-created_at')
     serializer = LeaveRequestSerializer(leaves, many=True)
     return Response(serializer.data)
+
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -820,8 +892,7 @@ def handle_leave_request(request, pk):
         return Response({"error": "Invalid status"}, status=400)
 
     leave_request.status = status
-    leave_request.is_seen_by_employee = False  # Trigger notification for employee
-    leave_request.save()
+    leave_request.is_seen_by_employee = False 
 
     if status == 'APPROVED':
         from datetime import timedelta
@@ -841,6 +912,10 @@ def handle_leave_request(request, pk):
     
     return Response({"message": f"Leave request {status.lower()} successfully"})
 
+
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_leave_seen(request, pk):
@@ -856,6 +931,9 @@ def mark_leave_seen(request, pk):
     leave_request.is_seen_by_employee = True
     leave_request.save()
     return Response({"message": "Marked as seen"})
+
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -884,6 +962,9 @@ def get_notifications(request):
     all_notifs = sorted(leave_data + profile_data + payroll_data, key=lambda x: x['created_at'], reverse=True)
     return Response(all_notifs)
 
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_notification_seen(request):
@@ -907,6 +988,9 @@ def mark_notification_seen(request):
     
     return Response({"message": "Notification marked as seen"})
 
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_all_notifications_seen(request):
@@ -918,7 +1002,6 @@ def mark_all_notifications_seen(request):
     except Employee.DoesNotExist:
         return Response({"error": "Employee profile not found"}, status=404)
 
-    # Mark Leaves
     LeaveRequest.objects.filter(
         employee=employee, 
         status__in=['APPROVED', 'REJECTED'],
@@ -926,7 +1009,6 @@ def mark_all_notifications_seen(request):
         is_dismissed_by_employee=False
     ).update(is_seen_by_employee=True)
     
-    # Mark Profile Updates
     ProfileUpdateRequest.objects.filter(
         employee=employee,
         status__in=['APPROVED', 'REJECTED'],
@@ -934,7 +1016,6 @@ def mark_all_notifications_seen(request):
         is_dismissed_by_employee=False
     ).update(is_seen_by_employee=True)
     
-    # Mark Payrolls
     Payroll.objects.filter(
         employee=employee, 
         is_seen_by_employee=False,
@@ -942,6 +1023,9 @@ def mark_all_notifications_seen(request):
     ).update(is_seen_by_employee=True)
     
     return Response({"message": "All marked as seen"})
+
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -963,6 +1047,9 @@ def get_admin_notifications(request):
     
     all_notifs = sorted(leave_data + profile_data, key=lambda x: x['created_at'], reverse=True)
     return Response(all_notifs)
+
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -987,6 +1074,9 @@ def dismiss_notification_employee(request):
     
     return Response({"message": "Dismissed successfully"})
 
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def dismiss_notification_admin(request):
@@ -1006,6 +1096,10 @@ def dismiss_notification_admin(request):
     
     return Response({"message": "Dismissed successfully"})
 
+
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_all_admin_notifications_seen(request):
@@ -1020,6 +1114,9 @@ def mark_all_admin_notifications_seen(request):
 
     return Response({"message": "All marked as seen"})
 
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_notification_history(request):
@@ -1031,7 +1128,6 @@ def get_notification_history(request):
     except Employee.DoesNotExist:
         return Response({"error": "Employee profile not found"}, status=404)
 
-    # Get all non-pending leave and profile requests (not dismissed)
     leaves = LeaveRequest.objects.filter(employee=employee, status__in=['APPROVED', 'REJECTED'], is_dismissed_by_employee=False).order_by('-created_at')
     profiles = ProfileUpdateRequest.objects.filter(employee=employee, status__in=['APPROVED', 'REJECTED'], is_dismissed_by_employee=False).order_by('-created_at')
     payrolls = Payroll.objects.filter(employee=employee, is_dismissed_by_employee=False).order_by('-created_at')
@@ -1048,6 +1144,9 @@ def get_notification_history(request):
     all_history = sorted(leave_data + profile_data + payroll_data, key=lambda x: x['created_at'], reverse=True)
     return Response(all_history)
 
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_monthly_payroll_status(request):
@@ -1057,7 +1156,7 @@ def get_monthly_payroll_status(request):
     if request.user.role != 'ADMIN':
         return Response({"error": "Unauthorized"}, status=403)
         
-    date_str = request.query_params.get('month') # Format YYYY-MM-01
+    date_str = request.query_params.get('month')
     if not date_str:
         today = timezone.localdate()
         date_str = f"{today.year}-{today.month:02d}-01"
@@ -1068,10 +1167,8 @@ def get_monthly_payroll_status(request):
     except ValueError:
         return Response({"error": "Invalid date format. Use YYYY-MM-DD (first of month)"}, status=400)
     
-    # Get all employees
     employees = Employee.objects.filter(user__is_active=True)
     
-    # Get payroll records for this month
     payrolls = Payroll.objects.filter(month=month_date)
     payroll_map = {p.employee.id: p for p in payrolls}
     
@@ -1093,6 +1190,9 @@ def get_monthly_payroll_status(request):
         
     return Response(data)
 
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def process_salary_payment(request):
@@ -1104,32 +1204,38 @@ def process_salary_payment(request):
         
     employee_id = request.data.get('employee_id')
     amount = request.data.get('amount')
-    month_str = request.data.get('month') # YYYY-MM-01
+    month_str = request.data.get('month')
     message = request.data.get('message', '')
     
     if not all([employee_id, amount, month_str]):
         return Response({"error": "Missing required fields (employee_id, amount, month)"}, status=400)
+    
+    from datetime import datetime
+    try:
+        if isinstance(month_str, str):
+            if len(month_str) == 7:  
+                month_str = f"{month_str}-01"
+            pay_date = datetime.strptime(month_str, '%Y-%m-%d').date()
+        else:
+            pay_date = month_str
         
+        pay_date = pay_date.replace(day=1)
+        month_str = pay_date.isoformat()
+    except (ValueError, TypeError) as e:
+        return Response({"error": f"Invalid month format. Use YYYY-MM or YYYY-MM-DD (received: {month_str})"}, status=400)
+    
+    today = timezone.localdate()
+    pay_month_start = pay_date.replace(day=1)
+    current_month_start = today.replace(day=1)
+    if pay_month_start > current_month_start:
+        return Response({"error": "Cannot process salary for future months"}, status=400)
+
     try:
         from decimal import Decimal
         employee = Employee.objects.get(pk=employee_id)
         
         # Safe conversion to Decimal
         final_amount = Decimal(str(amount))
-        annual_salary = employee.salary or Decimal('0')
-        
-        # SELF-HEALING LOGIC: 
-        # If the admin mistakenly sends the full annual salary as the payment amount,
-        # we automatically scale it down to the monthly equivalent (Annual / 12).
-        if annual_salary > 0 and final_amount == annual_salary:
-            final_amount = annual_salary / Decimal('12')
-            
-        # Prevent future payments
-        from datetime import datetime
-        today = timezone.localdate()
-        pay_date = datetime.strptime(month_str, '%Y-%m-%d').date()
-        if pay_date > today:
-            return Response({"error": "Cannot process salary for future months"}, status=400)
             
         payroll, created = Payroll.objects.get_or_create(
             employee=employee,
@@ -1149,6 +1255,9 @@ def process_salary_payment(request):
         return Response({"error": "Employee not found"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+    
+    
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -1163,6 +1272,9 @@ def get_my_payroll_history(request):
         return Response(serializer.data)
     except Employee.DoesNotExist:
         return Response({"error": "Employee profile not found"}, status=404)
+    
+    
+    
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -1177,15 +1289,23 @@ def get_all_payroll_history(request):
     serializer = PayrollSerializer(payrolls, many=True)
     return Response(serializer.data)
 
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def calculate_payroll_deductions(request):
-    if request.user.role != 'ADMIN':
-        return Response({"error": "Unauthorized"}, status=403)
-        
     employee_id = request.query_params.get('employee_id')
     month_str = request.query_params.get('month') # YYYY-MM-01
-    
+
+    if request.user.role == 'EMPLOYEE':
+        try:
+            employee_id = request.user.employee_profile.id
+        except Employee.DoesNotExist:
+            return Response({"error": "Employee profile not found"}, status=404)
+    elif request.user.role != 'ADMIN':
+        return Response({"error": "Unauthorized"}, status=403)
+
     if not all([employee_id, month_str]):
         return Response({"error": "Missing required params"}, status=400)
         
@@ -1197,6 +1317,7 @@ def calculate_payroll_deductions(request):
         return Response({"error": "Employee not found"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+    
 
 def compute_employee_salary(employee, month_str):
     from datetime import datetime, date
@@ -1205,10 +1326,8 @@ def compute_employee_salary(employee, month_str):
     
     if isinstance(month_str, str):
         try:
-            # Handle YYYY-MM-DD
             month_date = datetime.strptime(month_str, "%Y-%m-%d").date()
         except ValueError:
-            # Handle YYYY-MM
             month_date = datetime.strptime(month_str + "-01", "%Y-%m-%d").date()
     else:
         month_date = month_str
@@ -1219,21 +1338,15 @@ def compute_employee_salary(employee, month_str):
     month_start = date(year, month, 1)
     month_end = date(year, month, days_in_month)
 
-    # Get Schedule for Off-Days
     schedule, _ = WorkSchedule.objects.get_or_create(id=1)
     off_days = [int(d) for d in schedule.off_days.split(',') if d.strip().isdigit()]
     
-    # Get Holidays for this month
     holidays = Holiday.objects.filter(date__year=year, date__month=month).values_list('date', flat=True)
     
-    # Joining Date considerations
     joining_date = employee.date_of_joining or month_start
-    # Effective Start is whichever is later: Month Start or Joining Date
     effective_start = max(month_start, joining_date)
     is_mid_month_joiner = effective_start > month_start and effective_start <= month_end
 
-    # Calculate Working Days for FULL month (for daily rate)
-    # AND for Effective Period (for base salary)
     work_days_total = 0
     work_days_in_period = 0
     off_days_count = 0
@@ -1242,8 +1355,7 @@ def compute_employee_salary(employee, month_str):
     for d in range(1, days_in_month + 1):
         curr_date = date(year, month, d)
         python_weekday = curr_date.weekday()
-        mapped_weekday = (python_weekday + 1) % 7 # 0 is Sun
-        
+        mapped_weekday = (python_weekday + 1) % 7 
         is_holiday = curr_date in holidays
         is_off = mapped_weekday in off_days
         
@@ -1252,7 +1364,6 @@ def compute_employee_salary(employee, month_str):
             if curr_date >= effective_start:
                 work_days_in_period += 1
         
-        # We only count exclusions for the period they were active
         if curr_date >= effective_start:
             if is_holiday:
                 holidays_count += 1
@@ -1262,10 +1373,8 @@ def compute_employee_salary(employee, month_str):
     monthly_salary_standard = (employee.salary or Decimal('0')) / Decimal('12')
     daily_rate = monthly_salary_standard / Decimal(max(1, work_days_total))
     
-    # Effective base salary depends on how many working days they were contracted for
     effective_base_salary = daily_rate * Decimal(work_days_in_period)
     
-    # Fetch attendance and approved leaves for the period
     attendance_records = Attendance.objects.filter(
         employee=employee,
         date__range=[effective_start, month_end]
@@ -1279,7 +1388,6 @@ def compute_employee_salary(employee, month_str):
         end_date__gte=effective_start
     )
     
-    # Helper to check if a date is within an approved leave
     def is_on_leave(dt):
         return any(l.start_date <= dt <= l.end_date for l in approved_leaves)
 
@@ -1288,25 +1396,20 @@ def compute_employee_salary(employee, month_str):
     leave_count = 0
     today = timezone.localdate()
 
-    # We iterate through the active period up to today
-    # to count actual attendance status or lack thereof
     for d in range(1, days_in_month + 1):
         curr_date = date(year, month, d)
         
-        # Only count up to today for deductions
         if curr_date < effective_start or curr_date > today:
             continue
             
         python_weekday = curr_date.weekday()
-        mapped_weekday = (python_weekday + 1) % 7 # 0 is Sun
+        mapped_weekday = (python_weekday + 1) % 7 
         is_holiday = curr_date in holidays
         is_off = mapped_weekday in off_days
         
-        # We only care about statuses on working days
         if not is_holiday and not is_off:
             status = att_dict.get(curr_date)
             if status:
-                # Use explicit status if it exists
                 if status == 'Absent':
                     absent_count += 1
                 elif status == 'Half Day':
@@ -1314,14 +1417,11 @@ def compute_employee_salary(employee, month_str):
                 elif status == 'Leave':
                     leave_count += 1
             else:
-                # No attendance record. Check if it's an approved leave.
                 if is_on_leave(curr_date):
                     leave_count += 1
                 else:
-                    # Missing record on working day prior to/on today = Implicit Absent
                     absent_count += 1
     
-    # 1 leave is paid, any additional are deducted
     extra_leaves = max(0, leave_count - 1)
     
     deduction_absent = Decimal(absent_count) * daily_rate
@@ -1355,6 +1455,10 @@ def compute_employee_salary(employee, month_str):
         "payable_amount": round(max(0, float(payable_amount)), 2)
     }
 
+
+
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def pay_all_salaries(request):
@@ -1370,18 +1474,15 @@ def pay_all_salaries(request):
         return Response({"error": "Month is required (YYYY-MM-DD format)"}, status=400)
     
     try:
-        # Prevent future payments
         from datetime import datetime
         today = timezone.localdate()
         pay_date = datetime.strptime(month_str, '%Y-%m-%d').date()
-        # Compare year and month only
         pay_month_start = pay_date.replace(day=1)
         current_month_start = today.replace(day=1)
         
         if pay_month_start > current_month_start:
              return Response({"error": "Cannot process bulk salary for future months"}, status=400)
 
-        # Get all active employees
         employees = Employee.objects.all()
         paid_count = 0
         skipped_count = 0
@@ -1394,11 +1495,9 @@ def pay_all_salaries(request):
                     continue
                 
                 from decimal import Decimal
-                # Calculate monthly salary with deductions
                 salary_data = compute_employee_salary(employee, month_str)
                 monthly_amount = Decimal(str(salary_data['payable_amount']))
                 
-                # Create or update payroll record
                 payroll, created = Payroll.objects.get_or_create(
                     employee=employee,
                     month=month_str,
@@ -1406,7 +1505,6 @@ def pay_all_salaries(request):
                 )
                 
                 if not created and payroll.status != 'PAID':
-                    # If exists but not paid, update it
                     payroll.amount = monthly_amount
                     payroll.status = 'PAID'
                     payroll.is_seen_by_employee = False

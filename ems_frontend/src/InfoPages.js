@@ -106,26 +106,94 @@ export const AboutUs = () => (
     </PageLayout>
 );
 
-export const Contact = () => (
-    <PageLayout title="Contact Us">
-        <p style={{ color: '#cbd5e1', marginBottom: '30px' }}>Have questions? We'd love to hear from you.</p>
+export const Contact = () => {
+    const role = localStorage.getItem('role');
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [contactInfo, setContactInfo] = React.useState({
+        email: localStorage.getItem('company_email') || 'support@employeems.com',
+        phone: localStorage.getItem('company_phone') || '+1 (555) 123-4567',
+        address: localStorage.getItem('company_address') || '123 Tech Park, Innovation Way, CA'
+    });
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
-            <div>
-                <h3 style={{ color: 'white', marginBottom: '15px' }}>Get in touch</h3>
-                <div style={{ marginBottom: '15px', color: '#94a3b8' }}>📧 support@employeems.com</div>
-                <div style={{ marginBottom: '15px', color: '#94a3b8' }}>📞 +1 (555) 123-4567</div>
-                <div style={{ marginBottom: '15px', color: '#94a3b8' }}>🏢 123 Tech Park, Innovation Way, CA</div>
+    const handleSave = () => {
+        localStorage.setItem('company_email', contactInfo.email);
+        localStorage.setItem('company_phone', contactInfo.phone);
+        localStorage.setItem('company_address', contactInfo.address);
+        setIsEditing(false);
+    };
+
+    return (
+        <PageLayout title="Contact Us">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                <p style={{ color: '#cbd5e1', margin: 0 }}>Have questions? We'd love to hear from you.</p>
+                {role === 'ADMIN' && !isEditing && (
+                    <button
+                        onClick={() => setIsEditing(true)}
+                        style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
+                        ✏️ Edit Contact Info
+                    </button>
+                )}
             </div>
-            <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <input placeholder="Your Name" style={{ background: '#0f172a', border: '1px solid #334155', padding: '12px', borderRadius: '8px', color: 'white' }} />
-                <input placeholder="Email Address" style={{ background: '#0f172a', border: '1px solid #334155', padding: '12px', borderRadius: '8px', color: 'white' }} />
-                <textarea rows="4" placeholder="Message" style={{ background: '#0f172a', border: '1px solid #334155', padding: '12px', borderRadius: '8px', color: 'white' }}></textarea>
-                <button style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Send Message</button>
-            </form>
-        </div>
-    </PageLayout>
-);
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                <div>
+                    <h3 style={{ color: 'white', marginBottom: '15px' }}>Get in touch</h3>
+
+                    {isEditing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', background: '#0f172a', padding: '20px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
+                            <div>
+                                <label style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Email Address</label>
+                                <input
+                                    value={contactInfo.email}
+                                    onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#1e293b', border: '1px solid #334155', color: 'white' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Phone Number</label>
+                                <input
+                                    value={contactInfo.phone}
+                                    onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#1e293b', border: '1px solid #334155', color: 'white' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Physical Address</label>
+                                <textarea
+                                    value={contactInfo.address}
+                                    onChange={(e) => setContactInfo({ ...contactInfo, address: e.target.value })}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#1e293b', border: '1px solid #334155', color: 'white' }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button onClick={handleSave} style={{ flex: 1, background: '#10b981', color: 'white', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>
+                                <button onClick={() => setIsEditing(false)} style={{ flex: 1, background: 'transparent', color: '#94a3b8', border: '1px solid #334155', padding: '10px', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div style={{ marginBottom: '15px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span>📧</span> {contactInfo.email}
+                            </div>
+                            <div style={{ marginBottom: '15px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span>📞</span> {contactInfo.phone}
+                            </div>
+                            <div style={{ marginBottom: '15px', color: '#94a3b8', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                <span>🏢</span> <span style={{ whiteSpace: 'pre-line' }}>{contactInfo.address}</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+                <form onSubmit={(e) => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <input placeholder="Your Name" style={{ background: '#0f172a', border: '1px solid #334155', padding: '12px', borderRadius: '8px', color: 'white' }} />
+                    <input placeholder="Email Address" style={{ background: '#0f172a', border: '1px solid #334155', padding: '12px', borderRadius: '8px', color: 'white' }} />
+                    <textarea rows="4" placeholder="Message" style={{ background: '#0f172a', border: '1px solid #334155', padding: '12px', borderRadius: '8px', color: 'white' }}></textarea>
+                    <button style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Send Message</button>
+                </form>
+            </div>
+        </PageLayout>
+    );
+};
 
 export const PrivacyPolicy = () => (
     <PageLayout title="Privacy Policy">

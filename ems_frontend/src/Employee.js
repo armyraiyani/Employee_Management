@@ -7,8 +7,6 @@ import Modal from './Modal';
 
 function Employee() {
   const [employee, setEmployee] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ address: '', phone_number: '' });
   const [phoneError, setPhoneError] = useState('');
@@ -40,10 +38,8 @@ function Employee() {
         address: data.address || '',
         phone_number: data.phone_number || ''
       });
-      setLoading(false);
     } catch (err) {
-      setError('Failed to fetch profile info.');
-      setLoading(false);
+      console.error('Failed to fetch profile info.', err);
     }
   };
 

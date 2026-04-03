@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import api from './api/axios';
@@ -52,7 +52,7 @@ function Attendance() {
     const role = localStorage.getItem('role');
     const navigate = useNavigate();
 
-    const fetchAttendance = async () => {
+    const fetchAttendance = useCallback(async () => {
         try {
             const timestamp = Date.now();
             const [attRes, empRes, holRes, schRes, leaveRes] = await Promise.all([
@@ -77,11 +77,11 @@ function Attendance() {
             setError('Failed to load attendance records.');
             setLoading(false);
         }
-    };
+    }, [role]);
 
     useEffect(() => {
         fetchAttendance();
-    }, []);
+    }, [fetchAttendance]);
 
     const formatName = (input) => {
         if (!input) return 'UNKNOWN';
@@ -96,8 +96,8 @@ function Attendance() {
             firstPart = input;
         }
 
-        let first = firstPart.replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
-        let last = lastPart.replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
+        let first = firstPart.replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
+        let last = lastPart.replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
 
         if (last.toUpperCase() === 'EMPLOYEE' && first.length > 0) last = '';
 
@@ -134,7 +134,6 @@ function Attendance() {
     const handleMarkAttendance = async (action) => {
         // Enforce single check-in/out on frontend
         const today = new Date().toISOString().split('T')[0];
-        const record = attendanceData.find(r => r.date === today && (role === 'EMPLOYEE' ? true : false));
         // Note: For employees, attData usually only contains their own records 
         // if the API is scoped. But let's check correctly.
 
@@ -564,8 +563,8 @@ function Attendance() {
                 <div className="dashboard-container">
                     <div className="attendance-header-content">
                         <div>
-                            <h1 style={{ color: '#0f172a', fontWeight: '900' }}>Attendance Dashboard</h1>
-                            <p style={{ color: '#64748b' }}>{role === 'ADMIN' ? 'Staff presence overview' : 'Your personal attendance history'}</p>
+                            <h1 style={{ color: '#ffffff', fontWeight: '900' }}>Attendance Dashboard</h1>
+                            <p style={{ color: '#94a3b8' }}>{role === 'ADMIN' ? 'Staff presence overview' : 'Your personal attendance history'}</p>
                         </div>
 
                         {role === 'EMPLOYEE' && (
@@ -650,7 +649,7 @@ function Attendance() {
                             <div className="stat-pill" style={{ background: '#fff', padding: '15px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <div
                                     className={`stat-pill-item ${statFilter === 'All' ? 'active-filter' : ''}`}
-                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s' }}
+                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s', background: '#fff' }}
                                     onClick={() => setStatFilter('All')}
                                 >
                                     <div style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b' }}>{employees.length}</div>
@@ -659,7 +658,7 @@ function Attendance() {
                                 <div style={{ width: '1px', height: '30px', background: '#f1f5f9' }}></div>
                                 <div
                                     className={`stat-pill-item ${statFilter === 'Present' ? 'active-filter' : ''}`}
-                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s' }}
+                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s', background: '#fff' }}
                                     onClick={() => setStatFilter(statFilter === 'Present' ? 'All' : 'Present')}
                                 >
                                     <div style={{ fontSize: '24px', fontWeight: '800', color: '#16a34a' }}>
@@ -670,7 +669,7 @@ function Attendance() {
                                 <div style={{ width: '1px', height: '30px', background: '#f1f5f9' }}></div>
                                 <div
                                     className={`stat-pill-item ${statFilter === 'Absent' ? 'active-filter' : ''}`}
-                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s' }}
+                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s', background: '#fff' }}
                                     onClick={() => setStatFilter(statFilter === 'Absent' ? 'All' : 'Absent')}
                                 >
                                     <div style={{ fontSize: '24px', fontWeight: '800', color: '#ef4444' }}>
@@ -678,10 +677,10 @@ function Attendance() {
                                     </div>
                                     <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Absent Today</span>
                                 </div>
-                                <div style={{ width: '1px', height: '30px', background: '#f1f5f9' }}></div>
+                                <div style={{ width: '1px', height: '30px', background: 'rgba(255, 255, 255, 0.1)' }}></div>
                                 <div
                                     className={`stat-pill-item ${statFilter === 'Half Day' ? 'active-filter' : ''}`}
-                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s' }}
+                                    style={{ flex: 1, padding: '10px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', transition: '0.3s', background: '#fff' }}
                                     onClick={() => setStatFilter(statFilter === 'Half Day' ? 'All' : 'Half Day')}
                                 >
                                     <div style={{ fontSize: '24px', fontWeight: '800', color: '#d97706' }}>
@@ -702,7 +701,7 @@ function Attendance() {
                                         <span className="btn-icon" style={{ background: '#f5f3ff' }}>⚙️</span>
                                         <div className="btn-text-wrapper">
                                             <span className="btn-label-top" style={{ color: '#1e293b' }}>Shift</span>
-                                            <span className="btn-label-bottom">Settings</span>
+                                            <span className="btn-label-bottom" style={{ color: '#64748b' }}>Settings</span>
                                         </div>
                                     </button>
                                     <button
@@ -717,7 +716,7 @@ function Attendance() {
                                         </div>
                                     </button>
                                 </div>
-                                <div style={{ borderLeft: '1px solid #f1f5f9', paddingLeft: '15px', minWidth: '100px' }}>
+                                <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.1)', paddingLeft: '15px', minWidth: '100px' }}>
                                     <div style={{ fontSize: '9px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>Active Shift</div>
                                     <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>
                                         {formatTime12h(schedule.standard_check_in)} - {formatTime12h(schedule.standard_check_out)}
@@ -795,8 +794,8 @@ function Attendance() {
                             ) : isOffDay(selectedDate) ? (
                                 <div style={{ padding: '60px 40px', textAlign: 'center' }}>
                                     <div style={{ fontSize: '64px', marginBottom: '20px' }}>🏡</div>
-                                    <h2 style={{ color: '#1e293b', fontWeight: '800', marginBottom: '10px' }}>Off Day / Weekend</h2>
-                                    <p style={{ color: '#64748b', fontSize: '15px' }}>Attendance tracking is disabled for this day as per the office schedule.</p>
+                                    <h2 style={{ color: '#f8fafc', fontWeight: '800', marginBottom: '10px' }}>Off Day / Weekend</h2>
+                                    <p style={{ color: '#94a3b8', fontSize: '15px' }}>Attendance tracking is disabled for this day as per the office schedule.</p>
                                 </div>
                             ) : (
                                 <div className="table-wrapper-premium">
@@ -833,7 +832,7 @@ function Attendance() {
                                                             <td className="emp-name-cell" style={{ textTransform: 'uppercase' }}>{formatName(row)}</td>
                                                             <td>{row.department?.name || 'Unassigned'}</td>
                                                             <td>{getStatusBadge(row.status, () => handleStatusOverride(row.id, selectedDate, row.status))}</td>
-                                                            <td style={{ fontWeight: '500', color: getRemarksColor(row.remarks) }}>
+                                                            <td style={{ fontWeight: '500', color: '#cbd5e1' }}>
                                                                 {row.remarks || '-'}
                                                             </td>
                                                             <td className="time-text">{formatTime12h(row.check_in)}</td>
@@ -977,108 +976,146 @@ function Attendance() {
 
             {/* Schedule Settings Modal */}
             {showScheduleModal && role === 'ADMIN' && (
-                <div className="sidebar-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-                    <div className="shift-settings-card animate-slide-up" style={{ width: '450px', background: 'white', padding: '40px', borderRadius: '30px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0' }}>
-                        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-                            <div style={{ fontSize: '40px', marginBottom: '10px' }}>⚙️</div>
-                            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '24px', fontWeight: '800' }}>Shift Configuration</h3>
-                            <p style={{ margin: '5px 0 0', fontSize: '14px', color: '#64748b' }}>Configure global work hours and thresholds.</p>
+                <div className="sidebar-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)' }}>
+                    <div className="shift-settings-card animate-slide-up" style={{ width: '500px', background: '#ffffff', padding: '25px 35px', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid rgba(255, 255, 255, 0.5)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '15px', textAlign: 'center' }}>
+                            <div style={{ width: '45px', height: '45px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)', border: '2px solid #ffffff', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '22px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>⚙️</span>
+                            </div>
+                            <h3 style={{ margin: '0 0 2px', color: '#0f172a', fontSize: '20px', fontWeight: '900', letterSpacing: '-0.5px' }}>Shift Settings</h3>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Define organization-wide hours and tolerances.</p>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div className="creative-input-group">
+                                    <label style={{ fontSize: '10px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '1px' }}>
+                                        <span style={{ color: '#3b82f6', fontSize: '8px' }}>🟢</span> Shift Start
+                                    </label>
+                                    <input
+                                        className="creative-input-group input"
+                                        type="time"
+                                        style={{ width: '100%', padding: '8px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', background: '#f8fafc', border: '2px solid #e2e8f0', color: '#1e293b' }}
+                                        value={schedule.standard_check_in.substring(0, 5)}
+                                        onChange={(e) => setSchedule({ ...schedule, standard_check_in: e.target.value + ':00' })}
+                                    />
+                                </div>
+                                <div className="creative-input-group">
+                                    <label style={{ fontSize: '10px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '1px' }}>
+                                        <span style={{ color: '#f59e0b', fontSize: '8px' }}>⏱️</span> Grace Period
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            className="creative-input-group input"
+                                            type="number"
+                                            style={{ width: '100%', padding: '8px 45px 8px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', background: '#f8fafc', border: '2px solid #e2e8f0', color: '#1e293b' }}
+                                            value={schedule.check_in_tolerance}
+                                            onChange={(e) => setSchedule({ ...schedule, check_in_tolerance: e.target.value.replace(/^0+(?=\d)/, '') })}
+                                        />
+                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>MIN</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div className="creative-input-group">
+                                    <label style={{ fontSize: '10px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '1px' }}>
+                                        <span style={{ color: '#ef4444', fontSize: '8px' }}>🔴</span> Shift End
+                                    </label>
+                                    <input
+                                        className="creative-input-group input"
+                                        type="time"
+                                        style={{ width: '100%', padding: '8px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', background: '#f8fafc', border: '2px solid #e2e8f0', color: '#1e293b' }}
+                                        value={schedule.standard_check_out.substring(0, 5)}
+                                        onChange={(e) => setSchedule({ ...schedule, standard_check_out: e.target.value + ':00' })}
+                                    />
+                                </div>
+                                <div className="creative-input-group">
+                                    <label style={{ fontSize: '10px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '1px' }}>
+                                        <span style={{ color: '#f59e0b', fontSize: '8px' }}>⏱️</span> Grace Period
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            className="creative-input-group input"
+                                            type="number"
+                                            style={{ width: '100%', padding: '8px 45px 8px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', background: '#f8fafc', border: '2px solid #e2e8f0', color: '#1e293b' }}
+                                            value={schedule.check_out_tolerance}
+                                            onChange={(e) => setSchedule({ ...schedule, check_out_tolerance: e.target.value.replace(/^0+(?=\d)/, '') })}
+                                        />
+                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>MIN</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="creative-input-group" style={{ background: '#f8fafc', padding: '12px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
+                                <label style={{ fontSize: '10px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '1px' }}>
+                                    <span style={{ color: '#8b5cf6', fontSize: '8px' }}>🌓</span> Half-Day Threshold
+                                </label>
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                    <input
+                                        className="creative-input-group input"
+                                        type="time"
+                                        style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', background: 'white', border: '2px solid #e2e8f0', color: '#1e293b' }}
+                                        value={schedule.half_day_threshold.substring(0, 5)}
+                                        onChange={(e) => setSchedule({ ...schedule, half_day_threshold: e.target.value + ':00' })}
+                                    />
+                                    <div style={{ flex: 1.5, fontSize: '11px', color: '#64748b', lineHeight: '1.3', fontWeight: '500' }}>
+                                        Exiting before this marks <strong style={{ color: '#d97706' }}>Half Day</strong>.
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="creative-input-group">
-                                <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '1px' }}>Standard Check-In</label>
-                                <input
-                                    className="creative-input-group input"
-                                    type="time"
-                                    style={{ width: '100%', padding: '15px', borderRadius: '12px', fontSize: '16px', fontWeight: '600' }}
-                                    value={schedule.standard_check_in.substring(0, 5)}
-                                    onChange={(e) => setSchedule({ ...schedule, standard_check_in: e.target.value + ':00' })}
-                                />
-                            </div>
-                            <div className="creative-input-group">
-                                <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '1px' }}>Check-In Tolerance (Min)</label>
-                                <input
-                                    className="creative-input-group input"
-                                    type="number"
-                                    style={{ width: '100%', padding: '15px', borderRadius: '12px', fontSize: '16px', fontWeight: '600' }}
-                                    value={schedule.check_in_tolerance}
-                                    onChange={(e) => setSchedule({ ...schedule, check_in_tolerance: parseInt(e.target.value) || 0 })}
-                                />
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                            <div className="creative-input-group">
-                                <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '1px' }}>Standard Check-Out</label>
-                                <input
-                                    className="creative-input-group input"
-                                    type="time"
-                                    style={{ width: '100%', padding: '15px', borderRadius: '12px', fontSize: '16px', fontWeight: '600' }}
-                                    value={schedule.standard_check_out.substring(0, 5)}
-                                    onChange={(e) => setSchedule({ ...schedule, standard_check_out: e.target.value + ':00' })}
-                                />
-                            </div>
-                            <div className="creative-input-group">
-                                <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '1px' }}>Check-Out Tolerance (Min)</label>
-                                <input
-                                    className="creative-input-group input"
-                                    type="number"
-                                    style={{ width: '100%', padding: '15px', borderRadius: '12px', fontSize: '16px', fontWeight: '600' }}
-                                    value={schedule.check_out_tolerance}
-                                    onChange={(e) => setSchedule({ ...schedule, check_out_tolerance: parseInt(e.target.value) || 0 })}
-                                />
+                                <label style={{ fontSize: '10px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px', letterSpacing: '1px' }}>
+                                    <span style={{ color: '#10b981', fontSize: '8px' }}>📅</span> Weekend & Off Days
+                                </label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((name, idx) => {
+                                        const isSel = schedule.off_days?.split(',').includes(idx.toString());
+                                        return (
+                                            <button
+                                                key={name}
+                                                onClick={() => {
+                                                    let current = schedule.off_days ? schedule.off_days.split(',') : [];
+                                                    if (isSel) current = current.filter(d => d !== idx.toString());
+                                                    else current.push(idx.toString());
+                                                    setSchedule({ ...schedule, off_days: current.join(',') });
+                                                }}
+                                                style={{
+                                                    flex: '1 1 calc(25% - 6px)',
+                                                    padding: '6px', borderRadius: '8px', fontSize: '11px', fontWeight: '700',
+                                                    border: isSel ? '2px solid #3b82f6' : '2px solid #e2e8f0', cursor: 'pointer',
+                                                    background: isSel ? '#eff6ff' : '#f8fafc',
+                                                    color: isSel ? '#1d4ed8' : '#64748b',
+                                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                    boxShadow: isSel ? '0 2px 8px rgba(59, 130, 246, 0.2)' : 'none',
+                                                    transform: isSel ? 'translateY(-1px)' : 'none'
+                                                }}
+                                            >
+                                                {name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="creative-input-group">
-                            <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '1px' }}>Half Day Threshold (Time)</label>
-                            <input
-                                className="creative-input-group input"
-                                type="time"
-                                style={{ width: '100%', padding: '15px', borderRadius: '12px', fontSize: '16px', fontWeight: '600' }}
-                                value={schedule.half_day_threshold.substring(0, 5)}
-                                onChange={(e) => setSchedule({ ...schedule, half_day_threshold: e.target.value + ':00' })}
-                            />
-                            <small style={{ color: '#94a3b8', fontSize: '11px', marginTop: '5px', display: 'block' }}>Checking out after this time but before shift end marks as Half Day.</small>
-                        </div>
-
-                        <div className="creative-input-group" style={{ gridColumn: 'span 2', marginTop: '10px' }}>
-                            <label style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', letterSpacing: '1px' }}>Weekly Off Days</label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((name, idx) => {
-                                    const isSel = schedule.off_days?.split(',').includes(idx.toString());
-                                    return (
-                                        <button
-                                            key={name}
-                                            onClick={() => {
-                                                let current = schedule.off_days ? schedule.off_days.split(',') : [];
-                                                if (isSel) current = current.filter(d => d !== idx.toString());
-                                                else current.push(idx.toString());
-                                                setSchedule({ ...schedule, off_days: current.join(',') });
-                                            }}
-                                            style={{
-                                                padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '700',
-                                                border: '1px solid #e2e8f0', cursor: 'pointer',
-                                                background: isSel ? '#3b82f6' : 'white',
-                                                color: isSel ? 'white' : '#64748b'
-                                            }}
-                                        >
-                                            {name}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '40px' }}>
-                            <button className="btn-save-creative" onClick={handleUpdateSchedule} style={{ width: '100%', padding: '16px', borderRadius: '14px', fontSize: '16px', fontWeight: '700', background: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.3)' }}>Save Configurations</button>
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #f1f5f9' }}>
                             <button
-                                className="close-dashboard-btn"
                                 onClick={() => setShowScheduleModal(false)}
-                                style={{ width: '100%', padding: '12px', background: 'transparent', color: '#94a3b8', border: 'none', fontSize: '14px', cursor: 'pointer', fontWeight: '600' }}
+                                style={{ flex: 1, padding: '10px', background: '#f8fafc', color: '#64748b', border: '2px solid #e2e8f0', borderRadius: '12px', fontSize: '12px', cursor: 'pointer', fontWeight: '800', transition: 'all 0.2s' }}
+                                onMouseEnter={(e) => { e.target.style.background = '#f1f5f9'; e.target.style.color = '#475569'; }}
+                                onMouseLeave={(e) => { e.target.style.background = '#f8fafc'; e.target.style.color = '#64748b'; }}
                             >
-                                Dismiss Changes
+                                DISMISS
+                            </button>
+                            <button
+                                onClick={handleUpdateSchedule}
+                                style={{ flex: 2, padding: '10px', borderRadius: '12px', fontSize: '12px', fontWeight: '800', background: 'linear-gradient(135deg, #2563eb, #3b82f6)', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 8px 15px -3px rgba(37, 99, 235, 0.4)', transition: 'all 0.3s', letterSpacing: '0.5px' }}
+                                onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 12px 20px -5px rgba(37, 99, 235, 0.5)'; }}
+                                onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 8px 15px -3px rgba(37, 99, 235, 0.4)'; }}
+                            >
+                                SAVE CHANGES ✔
                             </button>
                         </div>
                     </div>
@@ -1137,9 +1174,9 @@ function Attendance() {
                             <div style={{ marginBottom: '15px' }}>
                                 <label style={{ fontSize: '11px', fontWeight: '700', color: '#1e40af', display: 'block', marginBottom: '5px' }}>SELECT DATE</label>
                                 <input
-                                    className="creative-input-group input"
                                     type="date"
-                                    style={{ width: '100%', background: 'white' }}
+                                    className="date-picker-premium"
+                                    style={{ width: '100%' }}
                                     value={newHoliday.date}
                                     onChange={(e) => setNewHoliday({ ...newHoliday, date: e.target.value })}
                                 />

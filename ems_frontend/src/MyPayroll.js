@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from './api/axios';
 import Navbar from './Navbar';
-import Modal from './Modal';
 
 function MyPayroll() {
     const [history, setHistory] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [selectedPayslip, setSelectedPayslip] = useState(null);
+    const [payslipDetails, setPayslipDetails] = useState(null);
     const [showAttendanceReport, setShowAttendanceReport] = useState(false);
     const [attendanceStats, setAttendanceStats] = useState(null);
     const [allAttendance, setAllAttendance] = useState([]);
@@ -17,15 +16,35 @@ function MyPayroll() {
         fetchHistory();
     }, []);
 
+    // Fetch deduction details when payslip is selected
+    useEffect(() => {
+        const fetchDetails = async () => {
+            console.log('Selected payslip', selectedPayslip);
+            if (!selectedPayslip || !selectedPayslip.employee) {
+                setPayslipDetails(null);
+                return;
+            }
+            try {
+                const apiUrl = `payroll/calculate/?employee_id=${selectedPayslip.employee}&month=${selectedPayslip.month}`;
+                console.log('Requesting', apiUrl);
+                const res = await api.get(apiUrl);
+                console.log('Payslip details API response', res.data);
+                setPayslipDetails(res.data);
+            } catch (err) {
+                console.error('Failed to fetch payslip details', err);
+                setPayslipDetails(null);
+            }
+        };
+        fetchDetails();
+    }, [selectedPayslip]);
+
     const fetchHistory = async () => {
         try {
             const res = await api.get('payroll/history/');
             const data = Array.isArray(res.data) ? res.data : (res.data.results || []);
             setHistory(data);
-            setLoading(false);
         } catch (err) {
             console.error("Failed to fetch history", err);
-            setLoading(false);
         }
     };
 
@@ -33,13 +52,7 @@ function MyPayroll() {
         setSelectedPayslip(record);
     };
 
-    useEffect(() => {
-        if (showAttendanceReport && allAttendance.length > 0) {
-            calculateStats(reportMonth);
-        }
-    }, [reportMonth, allAttendance, showAttendanceReport]);
-
-    const calculateStats = (month) => {
+    const calculateStats = useCallback((month) => {
         const filtered = allAttendance.filter(r => r.date.startsWith(month));
         const stats = {
             present: filtered.filter(r => r.status === 'Present').length,
@@ -49,7 +62,13 @@ function MyPayroll() {
             total: filtered.length
         };
         setAttendanceStats(stats);
-    };
+    }, [allAttendance]);
+
+    useEffect(() => {
+        if (showAttendanceReport && allAttendance.length > 0) {
+            calculateStats(reportMonth);
+        }
+    }, [reportMonth, allAttendance, showAttendanceReport, calculateStats]);
 
     const generateAttendanceReport = async () => {
         try {
@@ -126,7 +145,7 @@ function MyPayroll() {
                                     ) : (
                                         history.map((record) => (
                                             <tr key={record.id}>
-                                                <td><span className="date-text">{new Date(record.payment_date).toLocaleDateString()}</span></td>
+                                                <td><span className="payment-date">{new Date(record.payment_date).toLocaleDateString()}</span></td>
                                                 <td>{new Date(record.month).toLocaleDateString('default', { month: 'long', year: 'numeric' })}</td>
                                                 <td>
                                                     <span className="hub-status-badge">PAID</span>
@@ -156,7 +175,7 @@ function MyPayroll() {
             {/* Payslip Modal */}
             {selectedPayslip && (
                 <div className="calendar-modal-overlay" onClick={() => setSelectedPayslip(null)}>
-                    <div className="calendar-modal-card animate-scale-up" style={{ width: '550px', padding: '0', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
+                    <div className="calendar-modal-card animate-scale-up" style={{ width: 'min(92vw, 780px)', maxHeight: '90vh', padding: '0', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
                         <div style={{ background: 'linear-gradient(135deg, #2563eb, #1e40af)', padding: '25px', color: 'white', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, fontWeight: '800' }}>Official Payslip</h3>
                             <button onClick={() => setSelectedPayslip(null)} className="modal-close" style={{ top: '20px', right: '20px', color: '#fff' }}>×</button>
@@ -188,20 +207,53 @@ function MyPayroll() {
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: '600' }}>Basic Salary</td>
-                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', fontWeight: '700' }}>₹{selectedPayslip.amount}</td>
+                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: '600' }}>Monthly Salary</td>
+                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', fontWeight: '700' }}>
+                                            ₹{selectedPayslip.monthly_salary ?? selectedPayslip.amount}
+                                        </td>
                                     </tr>
-                                    <tr>
-                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: '600' }}>Allowances</td>
-                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right' }}>₹0.00</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#ef4444', fontWeight: '600' }}>Deductions</td>
-                                        <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', color: '#ef4444' }}>-₹0.00</td>
-                                    </tr>
+                                    {payslipDetails && (
+                                        <>
+                                            <tr>
+                                                <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: '600', fontSize: '13px', color: '#ef4444' }}>
+                                                    Deductions:
+                                                </td>
+                                                <td style={{ padding: '15px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right' }}></td>
+                                            </tr>
+                                            <tr>
+                                                <td style={{ padding: '10px 12px', paddingLeft: '30px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '12px', color: '#94a3b8' }}>
+                                                    Absents ({payslipDetails.stats.absent} days)
+                                                </td>
+                                                <td style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', color: '#ef4444', fontSize: '12px' }}>
+                                                    -₹{payslipDetails.deductions.absent}
+                                                </td>
+                                            </tr>
+                                            <tr style={{ background: 'rgba(239, 68, 68, 0.05)' }}>
+                                                <td style={{ padding: '12px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: '700', fontSize: '13px', color: '#ef4444' }}>
+                                                    Total Deduction
+                                                </td>
+                                                <td style={{ padding: '12px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right', fontWeight: '700', color: '#ef4444', fontSize: '13px' }}>
+                                                    -₹{payslipDetails.total_deduction}
+                                                </td>
+                                            </tr>
+                                        </>
+                                    )}
                                     <tr style={{ background: 'rgba(37, 99, 235, 0.1)' }}>
                                         <td style={{ padding: '20px 12px', fontWeight: '800', color: '#60a5fa', fontSize: '16px' }}>NET PAYABLE</td>
-                                        <td style={{ padding: '20px 12px', textAlign: 'right', fontWeight: '900', fontSize: '22px', color: '#fff' }}>₹{selectedPayslip.amount}</td>
+                                        <td style={{ padding: '20px 12px', textAlign: 'right', fontWeight: '900', fontSize: '22px', color: '#fff' }}>
+                                            ₹{(() => {
+                                                const monthly = parseFloat(selectedPayslip.monthly_salary ?? selectedPayslip.amount) || 0;
+                                                const ded = parseFloat(payslipDetails?.total_deduction ?? 0) || 0;
+                                                const net = monthly - ded;
+                                                return net.toFixed(2);
+                                            })()}
+                                        </td>
+                                    </tr>
+                                    <tr style={{ background: 'rgba(16, 185, 129, 0.08)' }}>
+                                        <td style={{ padding: '20px 12px', fontWeight: '800', color: '#10b981', fontSize: '16px' }}>Admin Paid Salary</td>
+                                        <td style={{ padding: '20px 12px', textAlign: 'right', fontWeight: '900', fontSize: '22px', color: '#10b981' }}>
+                                            ₹{selectedPayslip.amount}
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -238,7 +290,7 @@ function MyPayroll() {
                                     value={reportMonth}
                                     onChange={(e) => setReportMonth(e.target.value)}
                                     className="creative-input-group input"
-                                    style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', color: '#1e293b', fontWeight: '700' }}
+                                    style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#000000', fontWeight: '700' }}
                                 />
                             </div>
                         </div>

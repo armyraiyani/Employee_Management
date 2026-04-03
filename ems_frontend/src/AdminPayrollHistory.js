@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from './api/axios';
 import Navbar from './Navbar';
 import { useNavigate } from 'react-router-dom';
@@ -8,14 +8,10 @@ function AdminPayrollHistory() {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        fetchHistory();
-    }, []);
-
     // Payment Detail Modal State
     const [paymentModal, setPaymentModal] = useState(null);
 
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         try {
             const res = await api.get('payroll/admin-global-history/');
             // alert(`DEBUG: Server returned ${Array.isArray(res.data) ? res.data.length : (res.data.results?.length || 0)} records.\nRAW: ${JSON.stringify(res.data).slice(0, 200)}`);
@@ -26,7 +22,11 @@ function AdminPayrollHistory() {
             console.error("Failed to fetch history", err);
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchHistory();
+    }, [fetchHistory]);
 
     if (loading) return <div>Loading...</div>;
 

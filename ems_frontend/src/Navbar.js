@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from './api/axios';
 import Modal from './Modal';
 import LeaveManagement from './LeaveManagement';
@@ -41,6 +41,43 @@ function Navbar() {
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
+    const fetchUserProfile = useCallback(async () => {
+
+        try {
+            const res = await api.get('profile/me/');
+            setUser(res.data);
+        } catch (err) {
+            console.error("Failed to fetch user profile", err);
+        }
+    }, []);
+
+    const fetchEmployeeNotifications = useCallback(async () => {
+        try {
+            const res = await api.get('/notifications/');
+            setPendingLeaves(res.data);
+        } catch (err) {
+            console.error("Failed to fetch notifications", err);
+        }
+    }, []);
+
+    const fetchPendingLeaves = useCallback(async () => {
+        try {
+            await Promise.all([
+                api.get('/leaves/all/'),
+                api.get('/profile/requests/')
+            ]);
+
+            if (role === 'ADMIN') {
+                const res = await api.get('/admin/notifications/');
+                setPendingLeaves(res.data);
+            } else {
+                fetchEmployeeNotifications();
+            }
+        } catch (err) {
+            console.error("Failed to fetch pending leaves", err);
+        }
+    }, [role, fetchEmployeeNotifications]);
+
     useEffect(() => {
         if (token) {
             fetchUserProfile();
@@ -64,7 +101,17 @@ function Navbar() {
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [token]);
+    }, [token, role, fetchUserProfile, fetchPendingLeaves, fetchEmployeeNotifications]);
+
+    const fetchAllNotificationHistory = useCallback(async () => {
+        try {
+            const res = await api.get('/notifications/history/');
+
+            setNotificationHistory(res.data);
+        } catch (err) {
+            console.error("Failed to fetch notification history", err);
+        }
+    }, []);
 
     useEffect(() => {
         if (role === 'ADMIN') {
@@ -73,56 +120,6 @@ function Navbar() {
             setUnreadCount(pendingLeaves.filter(n => !n.is_seen_by_employee).length);
         }
     }, [pendingLeaves, role]);
-
-    const fetchUserProfile = async () => {
-
-        try {
-            const res = await api.get('profile/me/');
-            setUser(res.data);
-        } catch (err) {
-            console.error("Failed to fetch user profile", err);
-        }
-    };
-
-    const fetchPendingLeaves = async () => {
-        try {
-            const [leaveRes, profileRes] = await Promise.all([
-                api.get('/leaves/all/'),
-                api.get('/profile/requests/')
-            ]);
-
-            const leaves = leaveRes.data.filter(l => l.status === 'PENDING').map(l => ({ ...l, type: 'LEAVE' }));
-            const profiles = profileRes.data.filter(p => p.status === 'PENDING').map(p => ({ ...p, type: 'PROFILE' }));
-
-            if (role === 'ADMIN') {
-                const res = await api.get('/admin/notifications/');
-                setPendingLeaves(res.data);
-            } else {
-                fetchEmployeeNotifications();
-            }
-        } catch (err) {
-            console.error("Failed to fetch pending leaves", err);
-        }
-    };
-
-    const fetchEmployeeNotifications = async () => {
-        try {
-            const res = await api.get('/notifications/');
-            setPendingLeaves(res.data);
-        } catch (err) {
-            console.error("Failed to fetch notifications", err);
-        }
-    };
-
-    const fetchAllNotificationHistory = async () => {
-        try {
-            const res = await api.get('/notifications/history/');
-
-            setNotificationHistory(res.data);
-        } catch (err) {
-            console.error("Failed to fetch notification history", err);
-        }
-    };
 
     const handleLogoutClick = () => {
         setModalState({
@@ -317,8 +314,12 @@ function Navbar() {
                                                 <div className="notif-actions">
                                                     {role === 'ADMIN' ? (
                                                         <>
-                                                            <button className="confirm-mini-btn" onClick={() => handleAction(item.id, 'APPROVED', item.type)}>✓</button>
-                                                            <button className="cancel-mini-btn" onClick={() => handleAction(item.id, 'REJECTED', item.type)}>✕</button>
+                                                            {(!item.start_date || new Date(`${item.start_date}T00:00:00`) >= new Date(new Date().setHours(0, 0, 0, 0))) && (
+                                                                <>
+                                                                    <button className="confirm-mini-btn" onClick={() => handleAction(item.id, 'APPROVED', item.type)}>✓</button>
+                                                                    <button className="cancel-mini-btn" onClick={() => handleAction(item.id, 'REJECTED', item.type)}>✕</button>
+                                                                </>
+                                                            )}
                                                         </>
                                                     ) : (
                                                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -433,7 +434,19 @@ function Navbar() {
                                         <div className="history-card-body">
                                             {item.type === 'LEAVE' ? (
                                                 <>
-                                                    <p><strong>Dates:</strong> {item.start_date} to {item.end_date} {item.is_half_day && '(Half Day)'}</p>
+                                                    <p style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', fontSize: '14px', color: '#1e293b', marginBottom: '8px' }}>
+                                                        <strong style={{ color: '#475569' }}>Requested Dates:</strong>
+                                                        <span style={{ fontWeight: '600' }}>{new Date(item.start_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                        {item.start_date !== item.end_date && (
+                                                            <>
+                                                                <span style={{ color: '#94a3b8' }}>to</span>
+                                                                <span style={{ fontWeight: '600' }}>{new Date(item.end_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                            </>
+                                                        )}
+                                                        <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#3b82f6', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: '800', marginLeft: '4px' }}>
+                                                            {item.is_half_day ? 'Half Day' : `${Math.ceil((new Date(item.end_date) - new Date(item.start_date)) / (1000 * 60 * 60 * 24)) + 1} Day${(Math.ceil((new Date(item.end_date) - new Date(item.start_date)) / (1000 * 60 * 60 * 24)) + 1) > 1 ? 's' : ''}`}
+                                                        </span>
+                                                    </p>
                                                     <p className="reason-text"><strong>Reason:</strong> "{item.reason}"</p>
                                                 </>
                                             ) : (
@@ -445,11 +458,14 @@ function Navbar() {
                                                 </div>
                                             )}
 
-                                            {item.status === 'PENDING' && (
+                                            {item.status === 'PENDING' && (!item.start_date || new Date(`${item.start_date}T00:00:00`) >= new Date(new Date().setHours(0, 0, 0, 0))) && (
                                                 <div className="approval-actions">
                                                     <button className="approve-btn" onClick={() => handleAction(item.id, 'APPROVED', item.type)}>Approve</button>
                                                     <button className="reject-btn" onClick={() => handleAction(item.id, 'REJECTED', item.type)}>Reject</button>
                                                 </div>
+                                            )}
+                                            {item.status === 'PENDING' && item.type === 'LEAVE' && item.start_date && new Date(`${item.start_date}T00:00:00`) < new Date(new Date().setHours(0, 0, 0, 0)) && (
+                                                <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '10px', fontWeight: '600' }}>This leave request has expired.</p>
                                             )}
                                         </div>
                                     </div>

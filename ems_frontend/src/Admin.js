@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from './api/axios';
 import Navbar from './Navbar';
@@ -58,7 +58,7 @@ function Admin() {
   // Payment Detail Modal State
   const [paymentModal, setPaymentModal] = useState(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const timestamp = Date.now();
 
@@ -89,43 +89,15 @@ function Admin() {
       setError(`Failed to fetch data: ${err.message}`);
       console.error(err);
     }
-  };
+  }, [currentMonth]);
 
   useEffect(() => {
     fetchData();
-  }, [currentMonth]); // Refetch if month changes
+  }, [fetchData]); // Refetch if month changes
 
 
 
-  const handleProcessAttendance = async () => {
-    setModalConfig({
-      isOpen: true,
-      title: 'Confirm Attendance Processing',
-      message: `Are you sure you want to process attendance for ${currentMonth}?`,
-      type: 'confirm',
-      onConfirm: async () => {
-        try {
-          const res = await api.post('attendance/process-daily/', { date: `${currentMonth}-01` });
-          setModalConfig({
-            isOpen: true,
-            title: 'Success',
-            message: res.data.message || 'Attendance processed successfully!',
-            type: 'success',
-            onConfirm: null
-          });
-          fetchData();
-        } catch (err) {
-          setModalConfig({
-            isOpen: true,
-            title: 'Error',
-            message: err.response?.data?.error || 'Failed to process attendance',
-            type: 'error',
-            onConfirm: null
-          });
-        }
-      }
-    });
-  };
+
 
   const handlePayAll = () => {
     // Check if any employees have already been paid for this month
@@ -297,8 +269,8 @@ function Admin() {
       firstPart = input;
     }
 
-    let first = firstPart.replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
-    let last = lastPart.replace(/\d+/g, '').replace(/[\._]/g, ' ').trim();
+    let first = firstPart.replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
+    let last = lastPart.replace(/\d+/g, '').replace(/[._]/g, ' ').trim();
 
     if (last.toUpperCase() === 'EMPLOYEE' && first.length > 0) last = '';
 
@@ -310,27 +282,33 @@ function Admin() {
   };
 
   return (
-    <div>
+    <div className="attendance-page-wrapper">
       <Navbar />
-      <div className="dashboard-container admin-theme">
-        <header className="dashboard-header">
-          <div>
-            <h1>Team Directory</h1>
-            <p style={{ color: '#64748b' }}>A curated view of your organization's talent.</p>
-          </div>
-          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <button className="creative-add-btn" onClick={() => {
-              if (!showAddModal) {
-                setFormData({ fullName: '', department_name: '', contact: '' });
-              }
-              setShowAddModal(prev => !prev);
-            }}>
-              {showAddModal ? '× Close' : '+ Add Employee'}
-            </button>
-          </div>
-        </header>
 
+      <div className="attendance-header-section">
+        <div className="header-glow"></div>
+        <div className="dashboard-container">
+          <div className="attendance-header-content">
+            <div>
+              <h1 style={{ color: '#ffffff', fontWeight: '900' }}>Team Directory</h1>
+              <p style={{ color: '#94a3b8' }}>A curated view of your organization's talent.</p>
+            </div>
+            <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <button className="creative-add-btn" onClick={() => {
+                if (!showAddModal) {
+                  setFormData({ fullName: '', department_name: '', contact: '' });
+                }
+                setShowAddModal(prev => !prev);
+              }}>
+                {showAddModal ? '× Close' : '+ Add Employee'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div className="dashboard-container" style={{ marginTop: '-60px', position: 'relative', zIndex: 2, background: 'transparent', boxShadow: 'none', padding: 0 }}>
+        {/* We use transparent so the nested cards (filter, list) show up with their own backgrounds, like in Attendance */}
 
 
         {/* Simplified & Creative Add Form */}
@@ -601,8 +579,8 @@ function Admin() {
                     padding: '8px 12px',
                     borderRadius: '10px',
                     border: '1px solid #e2e8f0',
-                    background: '#f8fafc',
-                    color: '#334155',
+                    background: '#ffffff',
+                    color: '#000000',
                     fontSize: '13px',
                     fontWeight: '700',
                     outline: 'none'

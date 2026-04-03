@@ -62,10 +62,17 @@ const LeaveManagement = ({ isOpen, onClose, employee, onLeaveApproved }) => {
         setAttachment(e.target.files[0]);
     };
 
+    const today = new Date().toISOString().split('T')[0];
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (phoneError) return;
         setMessage({ type: '', text: '' });
+
+        if (startDate < today) {
+            setMessage({ type: 'error', text: 'You cannot apply for leave on a past date.' });
+            return;
+        }
 
         const baseDays = getBaseDays();
         if (isHalfDay && baseDays > 1) {
@@ -150,11 +157,11 @@ const LeaveManagement = ({ isOpen, onClose, employee, onLeaveApproved }) => {
                             <div className="form-row">
                                 <div className="form-group">
                                     <label>Start Date</label>
-                                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+                                    <input type="date" className="date-picker-premium" value={startDate} min={today} onChange={(e) => setStartDate(e.target.value)} required />
                                 </div>
                                 <div className="form-group">
                                     <label>End Date</label>
-                                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+                                    <input type="date" className="date-picker-premium" value={endDate} min={startDate || today} onChange={(e) => setEndDate(e.target.value)} required />
                                 </div>
                             </div>
 

@@ -6,7 +6,7 @@ function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState('EMPLOYEE');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [savedAccounts, setSavedAccounts] = useState([]);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -36,28 +36,6 @@ function Login() {
       localStorage.setItem('last_username', username);
       localStorage.setItem('last_password', password);
 
-      // Handle Immediate Persistence (Remember Me checkbox)
-      if (rememberMe) {
-        const savedAccounts = JSON.parse(localStorage.getItem('saved_accounts') || '[]');
-        const accountData = {
-          username,
-          password,
-          firstName: role === 'ADMIN' ? 'Admin' : 'Employee', // Placeholder if we don't have user object here
-          lastName: '',
-          email: '',
-          role: role,
-          lastUsed: new Date().toISOString()
-        };
-
-        const existingIndex = savedAccounts.findIndex(acc => acc.username === username);
-        if (existingIndex > -1) {
-          savedAccounts[existingIndex] = { ...savedAccounts[existingIndex], ...accountData };
-        } else {
-          savedAccounts.push(accountData);
-        }
-        localStorage.setItem('saved_accounts', JSON.stringify(savedAccounts));
-        localStorage.setItem('remember_me_on_login', 'true');
-      }
 
       // Redirect based on role
       if (role !== selectedRole) {
@@ -194,7 +172,7 @@ function Login() {
           <div className="form-group">
             <label>Password</label>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               className="form-input"
               placeholder="Enter your password"
               value={password}
@@ -204,17 +182,14 @@ function Login() {
             />
           </div>
 
-          <div className="form-group remember-me-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              style={{ width: 'auto', margin: 0 }}
-            />
-            <label htmlFor="rememberMe" style={{ marginBottom: 0, cursor: 'pointer', fontSize: '14px', color: '#64748b' }}>
-              Remember Me
-            </label>
+          <div className="form-group">
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="password-toggle-button"
+            >
+              {showPassword ? 'Hide Password' : 'Show Password'}
+            </button>
           </div>
 
           <button type="submit" className="login-button">Sign In</button>

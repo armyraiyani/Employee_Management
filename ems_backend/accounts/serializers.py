@@ -90,7 +90,21 @@ class PayrollSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.user.username', read_only=True)
     first_name = serializers.CharField(source='employee.user.first_name', read_only=True)
     last_name = serializers.CharField(source='employee.user.last_name', read_only=True)
-    
+    annual_salary = serializers.SerializerMethodField(read_only=True)
+    monthly_salary = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Payroll
         fields = '__all__'
+
+    def get_annual_salary(self, obj):
+        try:
+            return float(obj.employee.salary or 0)
+        except Exception:
+            return 0.0
+
+    def get_monthly_salary(self, obj):
+        try:
+            return round(float((obj.employee.salary or 0) / 12), 2)
+        except Exception:
+            return 0.0

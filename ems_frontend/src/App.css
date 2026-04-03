@@ -143,7 +143,7 @@ p {
 /* Glass Card Style */
 .login-card {
   background: rgba(30, 41, 59, 0.7);
-  padding: 50px;
+  padding: 40px;
   border-radius: 20px;
   width: 100%;
   max-width: 450px;
@@ -204,6 +204,11 @@ p {
 .creative-table td {
   padding: 20px;
   vertical-align: middle;
+  color: #1e293b; /* dark row text by default */
+}
+
+.creative-table td strong {
+  color: #000; /* employee name in bold should be black */
 }
 
 .creative-table td:first-child {
@@ -539,6 +544,26 @@ p {
   color: var(--text-muted);
 }
 
+.password-toggle-button {
+  width: 100%;
+  height: 36px;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle-button:hover {
+  background: rgba(255,255,255,0.16);
+}
 .auth-link {
   color: var(--accent-color);
   text-decoration: none;
@@ -1075,16 +1100,12 @@ p {
 
 /* ===== Dashboards ===== */
 .dashboard-container {
-  background-color: #e0f2fe;
-  /* Light Blue */
+  background-color: transparent;
   padding: 40px;
-  max-width: 1400px;
-  margin: 40px auto;
-  /* Added top margin to separate from nav */
-  border-radius: 16px;
-  color: #0f172a;
-  /* Dark Text */
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  color: inherit;
 }
 
 .dashboard-container h1,
@@ -1093,8 +1114,7 @@ p {
 .dashboard-container p,
 .dashboard-container th,
 .dashboard-container td {
-  color: #0f172a;
-  /* Force Dark Text within Dashboard */
+  /* Inherit colors so we don't force dark text on a dark background */
 }
 
 .dashboard-header {
@@ -1982,19 +2002,20 @@ input[type=number] {
 }
 
 .creative-add-btn {
-  background: #1e293b;
-  color: white;
-  border: none;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #e2e8f0;
   padding: 10px 25px;
   border-radius: 50px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: 0.3s;
 }
 
 .creative-add-btn:hover {
-  background: #3b82f6;
-  transform: scale(1.05);
+  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 @media (max-width: 900px) {
@@ -2117,7 +2138,13 @@ input[type=number] {
 }
 
 .date-text {
-  color: #475569;
+  color: #475569 !important;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.payment-date {
+  color: #ffffff !important;
   font-weight: 500;
   font-size: 13px;
 }
@@ -2264,11 +2291,11 @@ input[type=number] {
 /* ===== Creative Attendance Page ===== */
 .attendance-page-wrapper {
   min-height: 100vh;
-  background-color: #f1f5f9;
+  background-color: transparent;
 }
 
 .attendance-header-section {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: transparent;
   padding: 80px 0 100px;
   position: relative;
   overflow: hidden;
@@ -2413,7 +2440,7 @@ input[type=number] {
   text-align: left;
   font-size: 13px;
   font-weight: 700;
-  color: #94a3b8;
+  color: #0f172a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -2421,8 +2448,9 @@ input[type=number] {
 .premium-table td {
   padding: 20px 35px;
   border-bottom: 1px solid #f1f5f9;
-  color: #334155;
+  color: #0f172a;
 }
+
 
 .status-badge {
   padding: 6px 16px;
@@ -2501,18 +2529,23 @@ input[type=number] {
 .date-picker-premium {
   padding: 10px 15px;
   border-radius: 10px;
-  border: 1px solid #94a3b8;
-  background: rgba(15, 23, 42, 0.4);
-  color: white;
-  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #000000;
+  font-weight: 700;
   outline: none;
   cursor: pointer;
   transition: all 0.3s;
 }
 
+.date-picker-premium:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
 .date-picker-premium:focus {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Unified Profile Premium Styles */
@@ -3954,8 +3987,9 @@ input[type=number] {
 }
 
 .dashboard-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   padding: 0 20px;
 }
 
